@@ -29,6 +29,7 @@ ENV/
 Processed/
 Data/
 Combined/
+Raw/
 
 # Jupyter Notebook
 .ipynb_checkpoints
