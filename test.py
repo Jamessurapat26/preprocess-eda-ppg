@@ -17,5 +17,3 @@ df = pd.read_csv('Combined\eda\combined_eda_data.csv')
 print(df.describe())
 df.describe().to_csv('Combined\eda\combined_eda_data_description.csv')
 
-# Optional: Reset display options after use
-
