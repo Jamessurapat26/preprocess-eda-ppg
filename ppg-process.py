@@ -120,7 +120,6 @@ def process_ppg_file(file_path: Path) -> None:
     except Exception as e:
         print(f'Error processing {file_path.name}: {str(e)}')
 
-
 def main():
     """Main function to process all PPG files"""
     files = list(RAW_PATH.glob('*.csv'))
