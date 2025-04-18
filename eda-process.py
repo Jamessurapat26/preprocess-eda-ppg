@@ -49,7 +49,8 @@ def get_label_for_subject(subject_id: str, labels: list) -> dict:
             return label
     return None
 
-def process_ppg_file(file_path: Path) -> None:
+# Resampling ข้อมูลเป็นทุก 1 วินาที
+def process_eda_file(file_path: Path) -> None:
     """Process a single PPG file with label information"""
     try:
         # Get subject ID and corresponding label
@@ -70,50 +71,54 @@ def process_ppg_file(file_path: Path) -> None:
         # Process PPG signal
         signals, info = nk.eda_process(data['EA'], sampling_rate=SAMPLING_RATE)
         signals = pd.DataFrame(signals)
-    
         
+        # เพิ่ม DateTime จาก data เดิม
         signals['DateTime'] = data['DateTime']
         
-        # Add label information
-        for key, value in subject_label.items():
-            signals[key] = value
-            
         if len(signals) != len(data):
             print(f"Warning: Length mismatch in {file_path.name}")
             return
         
-        #resample data to 1 second
-        # แยกคอลัมน์ที่เป็น object ออกมา
-        object_cols = signals.select_dtypes(include=['object'])
-
-        # แปลง DateTime เป็น index ถ้ายังไม่ได้ทำ
+        # ตั้งค่า DateTime เป็น index สำหรับการ resample
         signals.set_index('DateTime', inplace=True)
-
-        # Resample เฉพาะคอลัมน์ตัวเลข
-        numeric_data = signals.select_dtypes(include=['number'])
-        resampled_data = numeric_data.resample('1s').mean(numeric_only=True)
-
-        # ใช้ concat รวมคอลัมน์ object กลับเข้าไป
-        final_data = pd.concat([resampled_data, object_cols], axis=1)
-
-        # print(final_data)
-        signals = final_data
-
-        # Add subject label information
+        
+        # แยกคอลัมน์ที่เป็นข้อความ (object) ก่อน resample
+        object_cols = {}
+        for col in signals.columns:
+            if signals[col].dtype == 'object':
+                # เก็บค่าแรกของแต่ละคอลัมน์ที่เป็น object ไว้
+                object_cols[col] = signals[col].iloc[0]
+        
+        # ทำ resampling เฉพาะข้อมูลตัวเลข
+        resampled_data = signals.resample('1s').mean()
+        
+        # เติมค่า NaN ที่อาจเกิดจากการ resample ด้วยการ forward fill
+        # ใช้ ffill() แทน fillna(method='ffill') ตามคำแนะนำ
+        resampled_data = resampled_data.ffill()
+        
+        # ใส่ข้อมูล label กลับไปยัง DataFrame หลัง resample
         for key, value in subject_label.items():
-            signals[key] = value
-
-
+            resampled_data[key] = value
+            
+        # ใส่ข้อมูล object columns กลับไป
+        for col, value in object_cols.items():
+            resampled_data[col] = value
+        
+        # Reset index เพื่อทำให้ DateTime กลับเป็นคอลัมน์
+        resampled_data.reset_index(inplace=True)
+            
         # Ensure output directory exists
         PROCESSED_PATH.mkdir(parents=True, exist_ok=True)
         
         # Save processed data
         output_path = PROCESSED_PATH / file_path.name
-        signals.to_csv(output_path, index=False)
+        resampled_data.to_csv(output_path, index=False)
         print(f'Successfully processed {file_path.name} for subject {subject_id}')
         
     except Exception as e:
+        import traceback
         print(f'Error processing {file_path.name}: {str(e)}')
+        traceback.print_exc()
 
 def main():
     """Main function to process all PPG files"""
@@ -128,7 +133,7 @@ def main():
     
     # Process each file
     for file_path in files:
-        process_ppg_file(file_path)
+        process_eda_file(file_path)
 
 if __name__ == '__main__':
     main()
