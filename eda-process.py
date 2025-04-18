@@ -82,6 +82,28 @@ def process_ppg_file(file_path: Path) -> None:
             print(f"Warning: Length mismatch in {file_path.name}")
             return
         
+        #resample data to 1 second
+        # แยกคอลัมน์ที่เป็น object ออกมา
+        object_cols = signals.select_dtypes(include=['object'])
+
+        # แปลง DateTime เป็น index ถ้ายังไม่ได้ทำ
+        signals.set_index('DateTime', inplace=True)
+
+        # Resample เฉพาะคอลัมน์ตัวเลข
+        numeric_data = signals.select_dtypes(include=['number'])
+        resampled_data = numeric_data.resample('1s').mean(numeric_only=True)
+
+        # ใช้ concat รวมคอลัมน์ object กลับเข้าไป
+        final_data = pd.concat([resampled_data, object_cols], axis=1)
+
+        # print(final_data)
+        signals = final_data
+
+        # Add subject label information
+        for key, value in subject_label.items():
+            signals[key] = value
+
+
         # Ensure output directory exists
         PROCESSED_PATH.mkdir(parents=True, exist_ok=True)
         

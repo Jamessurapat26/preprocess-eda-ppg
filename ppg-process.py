@@ -46,7 +46,6 @@ def get_label_for_subject(subject_id: str, labels: list) -> dict:
 def process_ppg_file(file_path: Path) -> None:
     """Process a single PPG file with label information"""
     try:
-        # Get subject ID and corresponding label
         subject_id = get_subject_id_from_filename(file_path.name)
         subject_label = get_label_for_subject(subject_id, Label)
 
